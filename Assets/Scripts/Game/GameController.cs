@@ -19,7 +19,52 @@ public class GameController : MonoBehaviour
 
     private void PositionCards()
     {
-        //int 
+        var padding = 20f;
+        var drawingWidth = Camera.main.pixelWidth - 2 * padding;
+        var drawingHeight = Camera.main.pixelHeight - 2 * padding;
+        Vector2 cardGrid = CalculateCardGrid();
+        var widthSpaceEachCard = (float)drawingWidth / (float)cardGrid.x;
+        var heightSpaceEachCard = (float)drawingHeight / (float)cardGrid.y;
+        ResizeCards(widthSpaceEachCard, heightSpaceEachCard);
+        var canvasBottomLeftOrigin = new Vector3(-drawingHeight/2, -drawingWidth/2);
+
+        var cardsIndex = 0;
+        for (int y = 0; y < cardGrid.y; y++)
+        {
+            for (int x = 0; x < cardGrid.x; x++)
+            {
+                Cards[cardsIndex].transform.localPosition = canvasBottomLeftOrigin 
+                                                            + new Vector3(x*widthSpaceEachCard, y*heightSpaceEachCard);
+                cardsIndex++;
+            }
+        }
+    }
+
+    private void ResizeCards(float widthSpaceEachCard, float heightSpaceEachCard)
+    {
+        //throw new System.NotImplementedException();
+        return;
+    }
+
+    private Vector2 CalculateCardGrid()
+    {
+        var nbrOfPairs = GameManager.Instance.NumberOfPairs;
+
+        // minimal grid is a line of "pairs" width, "2" height
+        var minSize = 2;
+        var maxSize = nbrOfPairs;
+        var nbrOfCards = nbrOfPairs * 2;
+
+        for (int i = 3; i < maxSize; i++)
+        {
+            if (nbrOfPairs % i == 0)
+            {
+                minSize = i;
+                maxSize = nbrOfCards / i;
+            }
+        }
+
+        return new Vector2(maxSize,minSize);
     }
 
     private void ShuffleDeck()

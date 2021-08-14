@@ -9,6 +9,9 @@ public class CardController : MonoBehaviour, IPointerDownHandler
     private Sprite CardImage;
 
     [SerializeField]
+    private GameObject ImagesHolderGameObject;
+
+    [SerializeField]
     private float ImagesRadius;
 
     public Action<int> OnCardClicked;
@@ -43,25 +46,25 @@ public class CardController : MonoBehaviour, IPointerDownHandler
     {
         var positionPercent = (float)index / ((float)PairId + 1f);
         var positionInRad = positionPercent * 2f * Mathf.PI;
-        var positionInDegrees = positionPercent * 360f;
         var newImagePosition = gameObject.transform.position;
         newImagePosition += new Vector3(ImagesRadius * Mathf.Sin(positionInRad),
                                         ImagesRadius * Mathf.Cos(positionInRad));
         var imageGameObject = CreateSpriteRenderer();
-        imageGameObject.transform.SetParent(gameObject.transform);
-        imageGameObject.transform.SetPositionAndRotation(newImagePosition, Quaternion.Euler(0,0,positionInDegrees + 180));
+        imageGameObject.transform.SetParent(ImagesHolderGameObject.transform);
+        var positionInDegrees = positionPercent * -360f;
+        imageGameObject.transform.localPosition = newImagePosition;
+        imageGameObject.transform.localEulerAngles = new Vector3(0,0,positionInDegrees + 180);
         return imageGameObject;
     }
 
     private GameObject CreateSpriteRenderer()
     {
-        var gameObject = new GameObject ();
-        gameObject.name = "CardImage";
-        var spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+        var cardGameObject = new GameObject ();
+        cardGameObject.name = "CardImage";
+        var spriteRenderer = cardGameObject.AddComponent<SpriteRenderer>();
         spriteRenderer.sprite = CardImage;
         spriteRenderer.color = CalculateCardColor();
-        spriteRenderer.sortingOrder = 2;
-        return gameObject;
+        return cardGameObject;
     }
 
     private Color CalculateCardColor()
