@@ -14,12 +14,20 @@ public class CardController : MonoBehaviour, IPointerDownHandler
     [SerializeField]
     private float ImagesRadius;
 
-    public Action<int> OnCardClicked;
+    [SerializeField]
+    private GameObject BackCardGameObject;
+
+    public Action<GameObject,int> OnCardClicked;
 
     private int PairId;
 
     private List<GameObject> FaceImages;
 
+    private bool isFading = false;
+
+    const string TurnUpAnim = "TurnUp";
+
+    const string TurnDownAnim = "TurnDown";
     public void Init(int pairId)
     {
         FaceImages = new List<GameObject>();
@@ -27,10 +35,22 @@ public class CardController : MonoBehaviour, IPointerDownHandler
         PopulateCardFace();
     }
 
+    private void FixedUpdate() {
+        if (isFading)
+        {
+            var spriteRenderers = gameObject.GetComponentsInChildren<SpriteRenderer>();
+            foreach (var spriteRender in spriteRenderers)
+            {
+                var newColor = spriteRender.color;
+                newColor.a = newColor.a - 0.01f;
+                spriteRender.color = newColor;
+            }
+        }
+    }
+
     public void OnPointerDown(PointerEventData eventData)
     {
-        Debug.Log("card clicked");
-        OnCardClicked?.Invoke(PairId);
+        OnCardClicked?.Invoke(gameObject,PairId);
     }
 
     private void PopulateCardFace()
@@ -53,7 +73,8 @@ public class CardController : MonoBehaviour, IPointerDownHandler
         imageGameObject.transform.SetParent(ImagesHolderGameObject.transform);
         var positionInDegrees = positionPercent * -360f;
         imageGameObject.transform.localPosition = newImagePosition;
-        imageGameObject.transform.localEulerAngles = new Vector3(0,0,positionInDegrees + 180);
+        imageGameObject.transform.localEulerAngles = new Vector3(0,0,positionInDegrees);
+        imageGameObject.transform.localScale = new Vector3(40, 40, 40);
         return imageGameObject;
     }
 
@@ -70,10 +91,25 @@ public class CardController : MonoBehaviour, IPointerDownHandler
     private Color CalculateCardColor()
     {
         // Random color that is equal to all similar pairIds
-        // Random color generation created from arbitrary values
+        // Random color generation created from testing ColorTest scene and finding good numbers
         return new Color(
-            (((float)PairId * 0.6f) + 0.7f) % 1f,
-            (((float)PairId * 0.4f) + 0.6f) % 1f,
-            (((float)PairId * 0.8f) + 0.1f) % 1f);
+            (((float)PairId * 0.68f) + 0.32f) % 1f,
+            (((float)PairId * 0.41f) + 0.42f) % 1f,
+            (((float)PairId * 0.86f) + 0.39f) % 1f);
+    }
+
+    public void TurnCardUp()
+    {
+        GetComponent<Animator>().Play(TurnUpAnim);
+    }
+
+    public void TurnCardDown()
+    {
+        GetComponent<Animator>().Play(TurnDownAnim);
+    }
+
+    public void StartFade()
+    {
+        isFading = true;
     }
 }

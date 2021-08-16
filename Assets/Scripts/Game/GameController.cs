@@ -1,104 +1,129 @@
-using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameController : MonoBehaviour
 {
     [SerializeField]
-    private GameObject CardPrefab;
+    private CardsManager CardsManagerObject;
 
-    private List<GameObject> Cards;
-
-    private void Start() 
+    [SerializeField]
+    private GameObject EndPanel;
+    
+    private enum CardSelectionState
     {
-        Cards = new List<GameObject>();
-        CreateCards();
-        Random.InitState((int)System.DateTime.Now.Ticks);
-        ShuffleDeck();
-        PositionCards();
+        NONE,
+        ONE,
+        CORRECT_PAIR,
+        INCORRECT_PAIR,
     }
 
-    private void PositionCards()
-    {
-        var padding = 20f;
-        var drawingWidth = Camera.main.pixelWidth - 2 * padding;
-        var drawingHeight = Camera.main.pixelHeight - 2 * padding;
-        Vector2 cardGrid = CalculateCardGrid();
-        var widthSpaceEachCard = (float)drawingWidth / (float)cardGrid.x;
-        var heightSpaceEachCard = (float)drawingHeight / (float)cardGrid.y;
-        ResizeCards(widthSpaceEachCard, heightSpaceEachCard);
-        var canvasBottomLeftOrigin = new Vector3(-drawingHeight/2, -drawingWidth/2);
+    private CardSelectionState cardSelectionState = CardSelectionState.NONE;
 
-        var cardsIndex = 0;
-        for (int y = 0; y < cardGrid.y; y++)
+    [SerializeField]
+    private TextMeshProUGUI PairsText;
+
+    [SerializeField]
+    private TextMeshProUGUI TimerText;
+
+    private float TimeElapsed;
+
+    private int PairsFound;
+
+    private bool isGameFinished;
+
+    private void Start()
+    {
+        TimeElapsed = 0f;
+        PairsFound = 0;
+        isGameFinished = false;
+        CardsManagerObject.Cards.ForEach(c => 
+            c.GetComponent<CardController>().OnCardClicked += OnCardClicked);
+        CardsManagerObject.OnEndGame += OnEndGame;
+    }
+
+    private void Update()
+    {
+        if(!isGameFinished)
         {
-            for (int x = 0; x < cardGrid.x; x++)
+            TimeElapsed += Time.deltaTime;
+            TimerText.text = FloatToTimer(TimeElapsed);
+        }
+    }
+
+    public void OnEndGame()
+    {
+        EndPanel.SetActive(true);
+        isGameFinished = true;
+        Invoke("ChangeToMenuScene", 1.5f);
+    }
+
+    public void OnCardClicked(GameObject cardGameObject, int pairId)
+    {
+        CardsManagerObject.KeepCard(cardGameObject);
+        UpdateGameState();
+
+        if (cardSelectionState == CardSelectionState.NONE)
+        {
+            CardsManagerObject.SelectCard(cardGameObject, pairId);
+            cardSelectionState = CardSelectionState.ONE;
+        }
+        else if (cardSelectionState == CardSelectionState.ONE)
+        {
+            if(cardGameObject == CardsManagerObject.firstSelectedCard.GameObject)
             {
-                Cards[cardsIndex].transform.localPosition = canvasBottomLeftOrigin 
-                                                            + new Vector3(x*widthSpaceEachCard, y*heightSpaceEachCard);
-                cardsIndex++;
+                CardsManagerObject.firstSelectedCard.Keep = false;
+                return;
+            }
+
+            CardsManagerObject.SelectCard(cardGameObject, pairId);
+            var goodPair = CardsManagerObject.CheckCardsPair();
+
+            if(goodPair)
+            {
+                PairsFound++;
+                PairsText.text = "Pairs Found: " + PairsFound.ToString();
+                cardSelectionState = CardSelectionState.CORRECT_PAIR;
+            }
+            else
+            {
+                cardSelectionState = CardSelectionState.INCORRECT_PAIR;
             }
         }
     }
 
-    private void ResizeCards(float widthSpaceEachCard, float heightSpaceEachCard)
+    public void OnBackButtonClicked()
     {
-        //throw new System.NotImplementedException();
-        return;
+        ChangeToMenuScene();
     }
 
-    private Vector2 CalculateCardGrid()
+    public void ChangeToMenuScene()
     {
-        var nbrOfPairs = GameManager.Instance.NumberOfPairs;
-
-        // minimal grid is a line of "pairs" width, "2" height
-        var minSize = 2;
-        var maxSize = nbrOfPairs;
-        var nbrOfCards = nbrOfPairs * 2;
-
-        for (int i = 3; i < maxSize; i++)
-        {
-            if (nbrOfPairs % i == 0)
-            {
-                minSize = i;
-                maxSize = nbrOfCards / i;
-            }
-        }
-
-        return new Vector2(maxSize,minSize);
+        SceneManager.LoadScene("MenuScene");
     }
 
-    private void ShuffleDeck()
+    private void UpdateGameState()
     {
-        for (int cardIndex = 0; cardIndex < Cards.Count; cardIndex++)
+        switch(cardSelectionState)
         {
-            var swappedCard = Cards[cardIndex];
-            var randomIndex = Random.Range(0,Cards.Count);
-            Cards[cardIndex] = Cards[randomIndex];
-            Cards[randomIndex] = swappedCard;
+            case CardSelectionState.NONE:
+            case CardSelectionState.ONE:
+                break;
+            case CardSelectionState.INCORRECT_PAIR:
+                CardsManagerObject.UnselectCards();
+                cardSelectionState = CardSelectionState.NONE;
+                break;
+            case CardSelectionState.CORRECT_PAIR:
+                cardSelectionState = CardSelectionState.NONE;
+                break;
         }
     }
 
-    public void OnCardClicked(int pairId)
+    private string FloatToTimer(float timeElapsed)
     {
-        Debug.Log("Clicked on me " + pairId.ToString());
-    }
-
-    private void CreateCards()
-    {
-        for (int pairId = 0; pairId < GameManager.Instance.NumberOfPairs; pairId++)
-        {
-            CreateSingleCard(pairId);
-            CreateSingleCard(pairId);
-        }
-    }
-
-    private void CreateSingleCard(int pairId)
-    {
-        var newCard = Instantiate(CardPrefab);
-        var newCardController = newCard.GetComponent<CardController>();
-        newCardController.Init(pairId);
-        newCardController.OnCardClicked += OnCardClicked;
-        newCard.transform.SetParent(gameObject.transform);
-        Cards.Add(newCard);
+        var minutes = Mathf.FloorToInt(timeElapsed / 60f);
+        var seconds = Mathf.FloorToInt(timeElapsed % 60f);
+        var miliseconds = (TimeElapsed % 1f) * 1000;
+        return string.Format("{0:00}:{1:00}:{2:000}", minutes, seconds, miliseconds);
     }
 }
